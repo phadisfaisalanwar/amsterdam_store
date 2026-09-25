@@ -1,13 +1,13 @@
-import image500 from '../../WhatsApp Image 2026-09-22 500 ml.jpeg';
-import image600 from '../../WhatsApp Image 2026-09-22 600 ml.jpeg';
-import image710 from '../../WhatsApp Image 2026-09-22 710 ml.jpeg';
-import image750 from '../../WhatsApp Image 2026-09-22 750 ml.jpeg';
-import image900 from '../../WhatsApp Image 2026-09-22 900 ml.jpeg';
-import faizPhoto from '../../WhatsApp Image 2026-09-24 faiz.jpeg';
-import farisPhoto from '../../WhatsApp Image 2026-09-24 faris.jpeg';
-import kikiPhoto from '../../WhatsApp Image 2026-09-24 kiki.jpeg';
-import phadisPhoto from '../../WhatsApp Image 2026-09-24 phadis.jpeg';
-import riyadiPhoto from '../../WhatsApp Image 2026-09-24 riyadi.jpeg';
+const image500 = 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=900&q=80';
+const image600 = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=900&q=80';
+const image710 = 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80';
+const image750 = 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80';
+const image900 = 'https://images.unsplash.com/photo-1521590832167-7ae0d9f4bb39?auto=format&fit=crop&w=900&q=80';
+const faizPhoto = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80';
+const farisPhoto = 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80';
+const kikiPhoto = 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=200&q=80';
+const phadisPhoto = 'https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=200&q=80';
+const riyadiPhoto = 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80';
 
 export interface Product {
   id: number;
@@ -38,7 +38,7 @@ export const products: Product[] = [
     price: 95000,
     originalPrice: 150000,
     description: 'Tumbler stainless steel premium dengan lapisan vacuum insulation double-wall untuk menjaga minuman tetap segar.',
-    longDescription: 'Amsterdam Classic hadir dengan desain minimalis khas Belanda. Teknologi double-wall vacuum insulation menjaga minuman dingin hingga 24 jam dan panas hingga 12 jam. Cocok untuk aktivitas sehari-hari.',
+    longDescription: 'Amsterdam Classic hadir dengan desain minimalis khas Belanda. Teknologi double-wall vacuum insulation menjaga minuman dingin hingga 24 jam dan panas hingga 12 jam. Cocok untuk aktivitas harian dan perjalanan.',
     capacity: '500ml',
     material: 'Stainless Steel 18/8',
     color: 'Navy Blue',
@@ -175,6 +175,7 @@ export const blogPosts = [
     readTime: '6 menit',
   },
 ];
+
 export const testimonials = [
   {
     id: 1,
@@ -201,7 +202,7 @@ export const testimonials = [
     rating: 5,
     text: 'Amsterdam Luxe ini beneran mewah banget. Jadi hadiah ulang tahun suami dan dia suka banget. Worth every penny!',
     product: 'Amsterdam Luxe 500ml',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&auto=format',
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=200&q=80',
   },
   {
     id: 4,
@@ -228,7 +229,7 @@ export const testimonials = [
     rating: 5,
     text: 'Amsterdam Sport sangat cocok untuk aktivitas outdoor saya. Tutupnya mudah dibuka satu tangan saat naik sepeda.',
     product: 'Amsterdam Sport 600ml',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&auto=format',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
   },
 ];
 
