@@ -1,12 +1,23 @@
-import type { Product } from './products';
+import { products as fallbackProducts, type Product } from './products';
 
-const apiUrl = import.meta.env.VITE_API_URL ?? '/api/products.php';
+const apiCandidates = [
+  import.meta.env.VITE_API_URL,
+  '/api/products',
+  '/api/products.php',
+].filter((value): value is string => Boolean(value));
 
 export async function fetchProducts(): Promise<Product[]> {
-  const response = await fetch(apiUrl);
-  if (!response.ok) throw new Error(`Product API returned ${response.status}`);
+  for (const apiUrl of apiCandidates) {
+    try {
+      const response = await fetch(apiUrl);
+      if (!response.ok) continue;
 
-  const payload = (await response.json()) as { products?: Product[] };
-  if (!Array.isArray(payload.products)) throw new Error('Invalid product API response');
-  return payload.products;
+      const payload = (await response.json()) as { products?: Product[] };
+      if (Array.isArray(payload.products)) return payload.products;
+    } catch {
+      // fall through to local fallback if API is unavailable
+    }
+  }
+
+  return fallbackProducts;
 }
