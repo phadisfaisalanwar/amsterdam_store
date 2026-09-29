@@ -1,0 +1,7 @@
+RewriteEngine On
+
+# Keep API and real files handled by Apache/PHP.
+RewriteCond %{REQUEST_URI} !^/tumblerui/api/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
