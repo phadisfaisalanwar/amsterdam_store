@@ -17,7 +17,8 @@ interface AuthContextType {
   authReady: boolean;
   login: (email: string, password: string) => Promise<User>;
   register: (name: string, email: string, password: string, phone: string) => Promise<User>;
-  resetPasswordWithGoogle: (credential: string, email: string, password: string) => Promise<User>;
+  requestPasswordReset: (channel: 'email' | 'phone', contact: string) => Promise<string>;
+  resetPasswordWithCode: (channel: 'email' | 'phone', contact: string, code: string, password: string) => Promise<void>;
   logout: () => void;
   isAdmin: boolean;
 }
@@ -53,13 +54,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return payload.user;
   };
 
-  const resetPasswordWithGoogle = async (credential: string, email: string, password: string): Promise<User> => {
-    const payload = await apiRequest<{ user: User }>('auth.php', {
+  const requestPasswordReset = async (channel: 'email' | 'phone', contact: string): Promise<string> => {
+    const payload = await apiRequest<{ message: string }>('password-reset.php', {
       method: 'POST',
-      body: JSON.stringify({ action: 'reset-password-google', credential, email, password }),
+      body: JSON.stringify({ action: 'request', channel, contact }),
     });
-    setUser(payload.user);
-    return payload.user;
+    return payload.message;
+  };
+
+  const resetPasswordWithCode = async (channel: 'email' | 'phone', contact: string, code: string, password: string): Promise<void> => {
+    await apiRequest('password-reset.php', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'verify', channel, contact, code, password }),
+    });
   };
 
   const logout = () => {
@@ -68,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, authReady, login, register, resetPasswordWithGoogle, logout, isAdmin: user?.role === 'admin' }}>
+    <AuthContext.Provider value={{ user, authReady, login, register, requestPasswordReset, resetPasswordWithCode, logout, isAdmin: user?.role === 'admin' }}>
       {children}
     </AuthContext.Provider>
   );

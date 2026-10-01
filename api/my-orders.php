@@ -11,7 +11,7 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($method === 'GET') {
     try {
         $ordersQuery = $database->prepare(
-            "SELECT o.id, o.total_amount, o.status, o.tracking_number,
+            "SELECT o.id, o.total_amount, o.shipping_cost, o.status, o.tracking_number,
                     DATE_FORMAT(o.order_date, '%Y-%m-%d %H:%i') AS date,
                     s.courier, s.status AS shipment_status, s.customer_confirmed_at
              FROM orders o
@@ -39,10 +39,11 @@ if ($method === 'GET') {
             ], $itemsQuery->fetchAll());
             $order['orderId'] = 'AMS-' . str_pad((string) $order['id'], 6, '0', STR_PAD_LEFT);
             $order['total'] = (float) $order['total_amount'];
+            $order['shippingCost'] = (float) $order['shipping_cost'];
             $order['tracking'] = $order['tracking_number'] ?? '';
             $order['courier'] = $order['courier'] ?? '';
             $order['customerConfirmed'] = $order['customer_confirmed_at'] !== null;
-            unset($order['id'], $order['total_amount'], $order['tracking_number'], $order['shipment_status'], $order['customer_confirmed_at']);
+            unset($order['id'], $order['total_amount'], $order['shipping_cost'], $order['tracking_number'], $order['shipment_status'], $order['customer_confirmed_at']);
         }
         unset($order);
 

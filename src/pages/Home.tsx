@@ -6,6 +6,7 @@ import { fetchProducts } from '../data/productApi';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import ProductCard from '../components/ProductCard';
+import HeroBackground from '../components/HeroBackground';
 
 const banners = [
   {
@@ -79,7 +80,8 @@ export default function Home() {
         style={{ background: banner.bg, minHeight: '520px', transition: 'background 0.6s ease' }}
         className="relative overflow-hidden"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
+        <HeroBackground accent={banner.accent} />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div>
               <div style={{ background: banner.accent, color: '#fff', display: 'inline-block', borderRadius: '100px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em' }} className="px-4 py-1.5 mb-5 uppercase">
@@ -105,7 +107,7 @@ export default function Home() {
                 <img
                   src={banner.image}
                   alt="Amsterdam Tumbler"
-                  className="w-64 h-64 object-contain rounded-full"
+                  className="w-64 h-64 object-contain rounded-full hero-float"
                   style={{ transition: 'opacity 0.4s ease' }}
                 />
               </div>
@@ -154,7 +156,7 @@ export default function Home() {
               { label: 'Sport', desc: 'Active Lifestyle', color: '#8B1A1A', img: products[4].image },
             ].map(cat => (
               <Link key={cat.label} to={`/catalog?category=${cat.label}`} className="group relative overflow-hidden rounded-2xl" style={{ aspectRatio: '1', background: cat.color }}>
-                <img src={cat.img} alt={cat.label} className="w-full h-full object-cover opacity-50 group-hover:opacity-60 group-hover:scale-105 transition-all duration-500" />
+                <img src={cat.img} alt={cat.label} className="w-full h-full object-cover opacity-70 group-hover:opacity-80 group-hover:scale-105 transition-all duration-500" />
                 <div className="absolute inset-0 flex flex-col justify-end p-4">
                   <div style={{ color: '#fff', fontFamily: 'var(--font-serif)', fontWeight: 700 }} className="text-lg">{cat.label}</div>
                   <div style={{ color: 'rgba(255,255,255,0.7)' }} className="text-xs">{cat.desc}</div>

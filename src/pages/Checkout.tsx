@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { formatPrice } from '../data/products';
 import { createOrder, type CreatedOrder } from '../data/orderApi';
+import { apiRequest } from '../data/api';
 
 type Step = 'shipping' | 'payment' | 'confirm';
 
 const paymentMethods = [
-  { id: 'bca', label: 'Transfer BCA', icon: '🏦', desc: '8227-xxxx-xxxx' },
-  { id: 'mandiri', label: 'Transfer Mandiri', icon: '🏦', desc: '1234-xxxx-xxxx' },
-  { id: 'gopay', label: 'GoPay', icon: '💚', desc: '087711263928' },
-  { id: 'ovo', label: 'OVO', icon: '💜', desc: '087711263928' },
+  { id: 'bca', label: 'Transfer BCA', icon: '🏦', desc: '8227-7678-8887' },
+  { id: 'mandiri', label: 'Transfer Mandiri', icon: '🏦', desc: '1234-6745-8788' },
+  { id: 'gopay', label: 'GoPay', icon: '', desc: '087711263928' },
+  { id: 'ovo', label: 'OVO', icon: '', desc: '087711263928' },
   { id: 'cod', label: 'Bayar di Tempat (COD)', icon: '📦', desc: 'Bayar saat barang tiba' },
 ];
 
@@ -52,10 +53,18 @@ export default function Checkout() {
   const [shipping, setShipping] = useState('regular');
   const [payment, setPayment] = useState('bca');
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const [taxRate, setTaxRate] = useState(11);
+
+  useEffect(() => {
+    apiRequest<{ settings: { taxRate?: number } }>('public-settings.php')
+      .then(payload => setTaxRate(payload.settings.taxRate ?? 11))
+      .catch(() => setTaxRate(11));
+  }, []);
 
   const shippingCost = shippingOptions.find(s => s.id === shipping)?.price ?? 25000;
   const appliedShippingCost = freeShipping ? 0 : shippingCost;
   const total = totalPrice + appliedShippingCost;
+  const taxAmount = taxRate > 0 ? totalPrice * taxRate / (100 + taxRate) : 0;
 
   const handleOrder = async () => {
     if (payment !== 'cod' && !paymentProof) {
@@ -311,6 +320,9 @@ export default function Checkout() {
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
             <div className="flex justify-between text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>
               <span>Subtotal</span><span style={{ color: 'var(--foreground)' }}>{formatPrice(totalPrice)}</span>
+            </div>
+            <div className="flex justify-between text-sm mb-1" style={{ color: 'var(--muted-foreground)' }}>
+              <span>PPN {taxRate}% (termasuk)</span><span>{formatPrice(taxAmount)}</span>
             </div>
             <div className="flex justify-between text-sm mb-3" style={{ color: 'var(--muted-foreground)' }}>
               <span>Ongkos Kirim</span><span style={{ color: freeShipping ? '#16a34a' : 'var(--foreground)' }}>{freeShipping ? 'GRATIS' : formatPrice(shippingCost)}</span>

@@ -33,11 +33,32 @@ export default function AdminReturns() {
   const [items, setItems] = useState<ReturnRequest[]>([]);
   const [detail, setDetail] = useState<ReturnRequest | null>(null);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshCount, setRefreshCount] = useState(0);
 
   useEffect(() => {
-    apiRequest<{ returns: ReturnRequest[] }>('admin-returns.php')
-      .then(payload => setItems(payload.returns))
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Pengembalian tidak dapat dimuat'));
+    let active = true;
+    setLoading(true);
+    apiRequest<{ returns?: ReturnRequest[] }>('admin-returns.php')
+      .then(payload => {
+        if (!Array.isArray(payload.returns)) {
+          throw new Error('Format data pengembalian tidak valid');
+        }
+        if (active) setItems(payload.returns);
+      })
+      .catch((reason: unknown) => {
+        if (active) setError(reason instanceof Error ? reason.message : 'Pengembalian tidak dapat dimuat');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [refreshCount]);
+
+  useEffect(() => {
+    const refreshOnFocus = () => setRefreshCount(count => count + 1);
+    window.addEventListener('focus', refreshOnFocus);
+    return () => window.removeEventListener('focus', refreshOnFocus);
   }, []);
 
   const updateStatus = async (item: ReturnRequest, status: ReturnRequest['status']) => {
@@ -57,7 +78,12 @@ export default function AdminReturns() {
 
   return (
     <div>
-      <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--primary)', fontWeight: 700, marginBottom: '20px' }} className="text-xl">Manajemen Pengembalian & Penukaran</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--primary)', fontWeight: 700 }} className="text-xl">Manajemen Pengembalian & Penukaran</h2>
+        <button type="button" disabled={loading} onClick={() => setRefreshCount(count => count + 1)} style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--foreground)' }} className="px-3 py-2 rounded-lg text-sm font-semibold disabled:opacity-50">
+          {loading ? 'Memuat...' : 'Perbarui'}
+        </button>
+      </div>
       {error && <p role="alert" style={{ color: '#b91c1c', marginBottom: '16px' }}>{error}</p>}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
@@ -100,7 +126,7 @@ export default function AdminReturns() {
                   </tr>
                 );
               })}
-              {items.length === 0 && <tr><td colSpan={8} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Belum ada permintaan pengembalian.</td></tr>}
+              {items.length === 0 && <tr><td colSpan={8} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)' }}>{loading ? 'Memuat pengajuan...' : 'Belum ada permintaan pengembalian.'}</td></tr>}
             </tbody>
           </table>
         </div>

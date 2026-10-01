@@ -36,8 +36,9 @@ react(),
       strictPort: true,
       proxy: {
         '/api': {
-          target: 'http://localhost:8081',
+          target: 'http://localhost',
           changeOrigin: true,
+          rewrite: path => path.replace(/^\/api/, '/amsterdam/api'),
         },
       },
       watch: {

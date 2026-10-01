@@ -3,6 +3,7 @@ dist/
 build/
 .cache/
 .env*
+api/config.local.php
 .vite/
 vite.config.*.timestamp-*
 *.tsbuildinfo

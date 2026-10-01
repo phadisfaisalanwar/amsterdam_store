@@ -64,6 +64,29 @@ export default function AdminSettings() {
     }
   };
 
+  const handleToggle = async (key: 'maintenanceMode' | 'allowCOD') => {
+    const nextValue = !settings[key];
+    setSettings(previous => ({ ...previous, [key]: nextValue }));
+    if (key !== 'maintenanceMode') return;
+
+    setSaving(true);
+    setError('');
+    setSaved(false);
+    try {
+      const payload = await apiRequest<{ settings: Partial<StoreSettings> }>('admin-settings.php', {
+        method: 'POST',
+        body: JSON.stringify({ settings: { maintenanceMode: nextValue } }),
+      });
+      setSettings(previous => ({ ...previous, ...payload.settings }));
+      setSaved(true);
+    } catch (reason) {
+      setSettings(previous => ({ ...previous, maintenanceMode: !nextValue }));
+      setError(reason instanceof Error ? reason.message : 'Mode maintenance tidak dapat disimpan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--primary)', fontWeight: 700, marginBottom: '20px' }} className="text-xl">Pengaturan Website</h2>
@@ -122,7 +145,8 @@ export default function AdminSettings() {
             </div>
             <div>
               <label style={{ display: 'block', color: 'var(--foreground)', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>PPN (%)</label>
-              <input type="number" value={settings.taxRate} onChange={e => setSettings(p => ({ ...p, taxRate: Number(e.target.value) }))} style={{ border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', width: '100%' }} className="px-4 py-3 rounded-xl text-sm outline-none" />
+              <input type="number" min="0" max="100" step="0.01" value={settings.taxRate} onChange={e => setSettings(p => ({ ...p, taxRate: Number(e.target.value) }))} style={{ border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', width: '100%' }} className="px-4 py-3 rounded-xl text-sm outline-none" />
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '11px', marginTop: '5px' }}>Dihitung otomatis sebagai bagian dari harga produk.</p>
             </div>
             <div>
               <label style={{ display: 'block', color: 'var(--foreground)', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Kurir Default</label>
@@ -143,7 +167,8 @@ export default function AdminSettings() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setSettings(p => ({ ...p, [toggle.key]: !(p as any)[toggle.key] }))}
+                  onClick={() => void handleToggle(toggle.key as 'maintenanceMode' | 'allowCOD')}
+                  disabled={saving}
                   style={{
                     width: '44px', height: '24px', borderRadius: '12px',
                     background: (settings as any)[toggle.key] ? 'var(--accent)' : 'var(--border)',

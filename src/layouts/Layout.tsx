@@ -1,16 +1,36 @@
-import { useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
+import { apiRequest } from '../data/api';
 
 export default function Layout() {
   const { totalItems } = useCart();
-  const { user, logout } = useAuth();
+  const { user, authReady, logout } = useAuth();
   const { items: wishlistItems } = useWishlist();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [storeSettings, setStoreSettings] = useState<{ maintenanceMode: boolean } | null>(null);
+
+  useEffect(() => {
+    const redirectToLogin = () => navigate('/auth');
+    window.addEventListener('amsterdam-auth-required', redirectToLogin);
+    return () => window.removeEventListener('amsterdam-auth-required', redirectToLogin);
+  }, [navigate]);
+
+  useEffect(() => {
+    const loadStoreSettings = () => {
+      apiRequest<{ settings: { maintenanceMode?: boolean } }>('public-settings.php')
+        .then(payload => setStoreSettings({ maintenanceMode: payload.settings.maintenanceMode ?? false }))
+        .catch(() => setStoreSettings(previous => previous ?? { maintenanceMode: false }));
+    };
+    loadStoreSettings();
+    const interval = window.setInterval(loadStoreSettings, 10000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const navLinks = [
     { to: '/', label: 'Beranda' },
@@ -24,8 +44,25 @@ export default function Layout() {
   const isActive = (to: string) =>
     to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
 
+  if (!authReady || !storeSettings) {
+    return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)', color: 'var(--muted-foreground)' }}>Memuat...</div>;
+  }
+
+  if (storeSettings.maintenanceMode && user?.role !== 'admin' && location.pathname !== '/auth') {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-5" style={{ background: 'var(--background)' }}>
+        <div className="max-w-lg text-center">
+          <div aria-hidden="true" style={{ fontSize: '52px', marginBottom: '20px' }}>🛠️</div>
+          <p style={{ color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.12em', fontSize: '12px', textTransform: 'uppercase', marginBottom: '12px' }}>Amsterdam Store</p>
+          <h1 style={{ fontFamily: 'var(--font-serif)', color: 'var(--primary)', fontSize: '32px', fontWeight: 700, marginBottom: '14px' }}>Website Sedang Dalam Perbaikan</h1>
+          <p style={{ color: 'var(--muted-foreground)', lineHeight: 1.7 }}>Kami sedang melakukan pemeliharaan agar pengalaman belanja kamu semakin baik. Silakan kembali beberapa saat lagi.</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'var(--background)' }}>
+    <div className="storefront min-h-screen flex flex-col" style={{ background: 'var(--background)' }}>
       {/* Top bar */}
       <div style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }} className="py-2 text-center text-sm font-medium">
         Gratis Ongkir untuk pembelian min. Rp 200.000 — Gunakan kode: <span style={{ color: 'var(--accent)' }}>FREEONGKIR</span>

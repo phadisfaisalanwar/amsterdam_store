@@ -9,26 +9,84 @@ interface TrackingResult {
   tracking: string;
   destination: string;
   estimasi: string;
-  timeline: { time: string; status: string; desc: string; done: boolean }[];
+  statusLabel: string;
+  timeline: { time: string; status: string; desc: string; done: boolean; current?: boolean }[];
+}
+
+const trackingStages = [
+  { status: 'Menunggu pembayaran', desc: 'Pembayaran sedang menunggu konfirmasi' },
+  { status: 'Diproses', desc: 'Pembayaran dikonfirmasi dan pesanan diproses' },
+  { status: 'Dikemas', desc: 'Pesanan disiapkan untuk dikirim' },
+  { status: 'Dikirim', desc: 'Paket sudah diserahkan kepada kurir' },
+  { status: 'Diterima', desc: 'Paket berhasil diterima' },
+];
+
+function createFallbackTimeline(status: string): TrackingResult['timeline'] {
+  const normalizedStatus = status.toLowerCase();
+  const currentIndex = ({
+    pending: 0,
+    processing: 1,
+    preparing: 2,
+    shipped: 3,
+    delivered: 4,
+    completed: 4,
+  } as Record<string, number>)[normalizedStatus] ?? 0;
+
+  return trackingStages.map((stage, index) => {
+    const done = index < currentIndex;
+    return {
+      ...stage,
+      done,
+      current: index === currentIndex,
+      time: done ? 'Sudah diperbarui' : 'Menunggu',
+    };
+  });
 }
 
 export default function OrderTracking() {
   const [searchParams] = useSearchParams();
   const [orderNo, setOrderNo] = useState(searchParams.get('order') ?? '');
   const [result, setResult] = useState<TrackingResult | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const [trackingNotice, setTrackingNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const timeline = Array.isArray(result?.timeline) ? result.timeline : [];
 
   const handleTrack = async (event?: React.FormEvent) => {
     event?.preventDefault();
-    if (!orderNo.trim()) return;
-    setLoading(true);
-    setNotFound(false);
-    try {
-      setResult(await apiRequest<TrackingResult>('track-order.php', { method: 'POST', body: JSON.stringify({ identifier: orderNo }) }));
-    } catch {
+    if (!orderNo.trim()) {
+      setTrackingNotice({ type: 'error', message: 'Masukkan nomor pesanan atau nomor resi.' });
       setResult(null);
-      setNotFound(true);
+      return;
+    }
+    setLoading(true);
+    setTrackingNotice(null);
+    setResult(null);
+    try {
+      const payload = await apiRequest<Partial<TrackingResult>>('track-order.php', { method: 'POST', body: JSON.stringify({ identifier: orderNo.trim() }) });
+      const trackingResult: TrackingResult = {
+        id: payload.id?.trim() || orderNo.trim().toUpperCase(),
+        status: payload.status?.trim() || 'pending',
+        courier: payload.courier?.trim() || 'Kurir ditentukan saat paket dikirim',
+        tracking: payload.tracking?.trim() || 'Belum tersedia',
+        destination: payload.destination?.trim() || 'Alamat tujuan belum tersedia',
+        estimasi: payload.estimasi?.trim() || 'Estimasi tersedia setelah paket dikirim',
+        statusLabel: payload.statusLabel?.trim() || ({
+          pending: 'Menunggu pembayaran',
+          processing: 'Diproses',
+          preparing: 'Dikemas',
+          shipped: 'Dikirim',
+          delivered: 'Diterima',
+          completed: 'Diterima',
+          review: 'Perlu ditinjau',
+        } as Record<string, string>)[payload.status?.trim().toLowerCase() || ''] || 'Status tidak tersedia',
+        timeline: Array.isArray(payload.timeline) && payload.timeline.length > 0
+          ? payload.timeline
+          : createFallbackTimeline(payload.status?.trim() || 'pending'),
+      };
+      setResult(trackingResult);
+      setTrackingNotice({ type: 'success', message: `Status ${trackingResult.id} berhasil ditemukan.` });
+    } catch (reason) {
+      setTrackingNotice({ type: 'error', message: reason instanceof Error ? reason.message : 'Status pengiriman tidak dapat dimuat.' });
     } finally {
       setLoading(false);
     }
@@ -52,22 +110,15 @@ export default function OrderTracking() {
           <button type="submit" disabled={!orderNo || loading} style={{ background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '12px 24px', borderRadius: '12px', fontWeight: 600, fontSize: '14px' }} className="hover:opacity-90 disabled:opacity-50 whitespace-nowrap">{loading ? 'Memuat...' : 'Lacak'}</button>
         </div>
       </form>
-      {notFound && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '20px', textAlign: 'center', color: '#dc2626' }}>Nomor pesanan atau resi tidak ditemukan.</div>}
+      {trackingNotice && <div role={trackingNotice.type === 'error' ? 'alert' : 'status'} aria-live="polite" style={{ background: trackingNotice.type === 'error' ? '#fef2f2' : '#ecfdf5', border: `1px solid ${trackingNotice.type === 'error' ? '#fecaca' : '#a7f3d0'}`, borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', color: trackingNotice.type === 'error' ? '#b91c1c' : '#166534', fontSize: '14px' }}>{trackingNotice.type === 'success' ? 'Status pelacakan berhasil diperbarui.' : trackingNotice.message}</div>}
       {result && (
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '20px', overflow: 'hidden' }}>
-          <div style={{ background: 'var(--primary)', padding: '20px 24px' }}>
-            <div className="flex flex-wrap justify-between gap-3">
-              <div><div style={{ color: 'rgba(245,240,232,0.6)', fontSize: '12px' }}>Nomor Pesanan</div><div style={{ color: '#fff', fontWeight: 700 }}>{result.id}</div></div>
-              <div><div style={{ color: 'rgba(245,240,232,0.6)', fontSize: '12px' }}>Kurir</div><div style={{ color: '#fff', fontWeight: 700 }}>{result.courier} {result.tracking && `· ${result.tracking}`}</div></div>
-              <div><div style={{ color: 'rgba(245,240,232,0.6)', fontSize: '12px' }}>Estimasi Tiba</div><div style={{ color: 'var(--accent)', fontWeight: 700 }}>{result.estimasi}</div></div>
-            </div>
-          </div>
           <div className="p-6">
-            <div style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '20px' }}>Tujuan: {result.destination}</div>
-            {result.timeline.map((item, index) => (
+            <div style={{ color: 'var(--primary)', fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: '18px', marginBottom: '20px' }}>{result.statusLabel}</div>
+            {timeline.map((item, index) => (
               <div key={item.status} className="flex gap-4 pb-6 relative">
-                <div className="flex flex-col items-center"><div style={{ width: '36px', height: '36px', borderRadius: '50%', background: item.done ? 'var(--accent)' : 'var(--muted)', border: item.done ? 'none' : '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.done ? '#fff' : 'var(--muted-foreground)', flexShrink: 0 }}>{item.done ? '✓' : index + 1}</div>{index < result.timeline.length - 1 && <div style={{ width: '2px', flex: 1, background: item.done ? 'var(--accent)' : 'var(--border)', marginTop: '4px', minHeight: '24px' }} />}</div>
-                <div style={{ paddingTop: '6px' }}><div style={{ color: item.done ? 'var(--foreground)' : 'var(--muted-foreground)', fontWeight: item.done ? 700 : 400, fontSize: '14px' }}>{item.status}</div><div style={{ color: 'var(--muted-foreground)', fontSize: '12px', marginTop: '2px' }}>{item.desc}</div><div style={{ color: 'var(--muted-foreground)', fontSize: '11px', marginTop: '4px' }}>{item.time}</div></div>
+                <div className="flex flex-col items-center"><div style={{ width: '36px', height: '36px', borderRadius: '50%', background: item.done || item.current ? 'var(--accent)' : 'var(--muted)', border: item.done || item.current ? 'none' : '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.done || item.current ? '#fff' : 'var(--muted-foreground)', flexShrink: 0 }}>{item.done ? '✓' : index + 1}</div>{index < timeline.length - 1 && <div style={{ width: '2px', flex: 1, background: item.done ? 'var(--accent)' : 'var(--border)', marginTop: '4px', minHeight: '24px' }} />}</div>
+                <div style={{ paddingTop: '6px' }}><div style={{ color: item.done || item.current ? 'var(--foreground)' : 'var(--muted-foreground)', fontWeight: item.done || item.current ? 700 : 400, fontSize: '14px' }}>{item.status}{item.current ? ' · Saat ini' : ''}</div><div style={{ color: 'var(--muted-foreground)', fontSize: '12px', marginTop: '2px' }}>{item.desc}</div><div style={{ color: 'var(--muted-foreground)', fontSize: '11px', marginTop: '4px' }}>{item.time}</div></div>
               </div>
             ))}
           </div>

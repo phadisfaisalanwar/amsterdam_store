@@ -1,93 +1,61 @@
 import { products } from '../data/products';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth } from '../context/AuthContext';
-import { apiRequest } from '../data/api';
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (options: { client_id: string; callback: (response: { credential: string }) => void }) => void;
-          renderButton: (element: HTMLElement, options: { theme: string; size: string; width: number; text: string }) => void;
-        };
-      };
-    };
-  }
-}
 
 export default function AuthPage() {
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [recovering, setRecovering] = useState(false);
+  const [resetStep, setResetStep] = useState<'request' | 'verify'>('request');
+  const [resetChannel, setResetChannel] = useState<'email' | 'phone'>('email');
+  const [resetContact, setResetContact] = useState('');
+  const [resetCode, setResetCode] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [googleClientId, setGoogleClientId] = useState('');
-  const googleButton = useRef<HTMLDivElement>(null);
-  const formRef = useRef(form);
-  const googleHandler = useRef<(credential: string) => Promise<void>>(async () => {});
-  const { login, register, resetPasswordWithGoogle, user } = useAuth();
+  const [notice, setNotice] = useState('');
+  const { login, register, requestPasswordReset, resetPasswordWithCode, user } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    formRef.current = form;
-  }, [form]);
 
   useEffect(() => {
     if (user) navigate(user.role === 'admin' ? '/admin' : '/', { replace: true });
   }, [user, navigate]);
 
-  useEffect(() => {
-    if (googleClientId) return;
-    apiRequest<{ googleClientId: string }>('auth.php?action=config')
-      .then(payload => setGoogleClientId(payload.googleClientId))
-      .catch(() => setGoogleClientId(''));
-  }, [googleClientId]);
-
-  useEffect(() => {
-    if (!recovering || !googleClientId || !googleButton.current) return;
-
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      if (!window.google || !googleButton.current) return;
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: response => {
-          void googleHandler.current(response.credential);
-        },
-      });
-      window.google.accounts.id.renderButton(googleButton.current, {
-        theme: 'outline',
-        size: 'large',
-        width: Math.min(360, googleButton.current.clientWidth || 320),
-        text: 'continue_with',
-      });
-    };
-    document.head.appendChild(script);
-    return () => script.remove();
-  }, [googleClientId, recovering]);
-
-  googleHandler.current = async credential => {
+  const handleRequestReset = async (event?: React.FormEvent) => {
+    event?.preventDefault();
     setLoading(true);
     setError('');
+    setNotice('');
     try {
-      const values = formRef.current;
-      if (!values.email || values.password.length < 8) {
-        setError('Masukkan email akun dan password baru minimal 8 karakter.');
-        return;
-      }
-      if (values.password !== values.confirmPassword) {
-        setError('Konfirmasi password baru tidak cocok.');
-        return;
-      }
-      const authenticated = await resetPasswordWithGoogle(credential, values.email, values.password);
-      navigate(authenticated.role === 'admin' ? '/admin' : '/');
+      const message = await requestPasswordReset(resetChannel, resetContact.trim());
+      setResetStep('verify');
+      setNotice(message);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Proses Google gagal');
+      setError(reason instanceof Error ? reason.message : 'Kode verifikasi tidak dapat dikirim');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyReset = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    setNotice('');
+    if (form.password !== form.confirmPassword) {
+      setError('Konfirmasi password baru tidak cocok.');
+      setLoading(false);
+      return;
+    }
+    try {
+      await resetPasswordWithCode(resetChannel, resetContact.trim(), resetCode.trim(), form.password);
+      setRecovering(false);
+      setResetStep('request');
+      setResetCode('');
+      setForm(previous => ({ ...previous, password: '', confirmPassword: '', email: resetChannel === 'email' ? resetContact : previous.email }));
+      setNotice('Password berhasil diubah. Silakan masuk dengan password baru.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Password tidak dapat diubah');
     } finally {
       setLoading(false);
     }
@@ -185,9 +153,14 @@ export default function AuthPage() {
             {recovering ? 'Atur Ulang Password' : tab === 'login' ? 'Selamat Datang Kembali' : 'Buat Akun Baru'}
           </h1>
           <p style={{ color: 'var(--muted-foreground)', fontSize: '14px', marginBottom: '24px' }}>
-            {recovering ? 'Verifikasi email Google untuk membuat password baru Amsterdam Store.' : tab === 'login' ? 'Masuk untuk melanjutkan belanja' : 'Daftar dan dapatkan diskon 10%'}
+            {recovering ? 'Kirim kode verifikasi ke email atau nomor ponsel yang terdaftar.' : tab === 'login' ? 'Masuk untuk melanjutkan belanja' : 'Daftar dan dapatkan diskon 10%'}
           </p>
 
+          {notice && (
+            <div role="status" style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#166534', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px' }}>
+              {notice}
+            </div>
+          )}
           {error && (
             <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px' }}>
               {error}
@@ -195,47 +168,98 @@ export default function AuthPage() {
           )}
 
           {recovering ? (
-            <form onSubmit={event => event.preventDefault()} className="space-y-4">
-              <div>
-                <label style={{ display: 'block', color: 'var(--foreground)', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Email akun Amsterdam Store</label>
-                <input
-                  type="email" required
-                  value={form.email}
-                  onChange={event => setForm(previous => ({ ...previous, email: event.target.value }))}
-                  placeholder="email@contoh.com"
-                  style={{ border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', width: '100%' }}
-                  className="px-4 py-3 rounded-xl text-sm outline-none focus:border-amber-400"
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: 'var(--foreground)', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Password baru</label>
-                <input
-                  type="password" minLength={8} required
-                  value={form.password}
-                  onChange={event => setForm(previous => ({ ...previous, password: event.target.value }))}
-                  placeholder="Min. 8 karakter"
-                  style={{ border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', width: '100%' }}
-                  className="px-4 py-3 rounded-xl text-sm outline-none focus:border-amber-400"
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: 'var(--foreground)', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Konfirmasi password baru</label>
-                <input
-                  type="password" minLength={8} required
-                  value={form.confirmPassword}
-                  onChange={event => setForm(previous => ({ ...previous, confirmPassword: event.target.value }))}
-                  placeholder="Ulangi password baru"
-                  style={{ border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', width: '100%' }}
-                  className="px-4 py-3 rounded-xl text-sm outline-none focus:border-amber-400"
-                />
-              </div>
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', lineHeight: 1.5 }}>
-                Password ini untuk masuk ke Amsterdam Store, bukan untuk mengganti password akun Google.
-              </p>
-              <button type="button" onClick={() => { setRecovering(false); setError(''); }} style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: 600 }}>
+            <div className="space-y-4">
+              {resetStep === 'request' ? (
+                <form onSubmit={event => void handleRequestReset(event)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2" role="group" aria-label="Metode pengiriman kode">
+                    {(['email', 'phone'] as const).map(channel => (
+                      <button
+                        key={channel}
+                        type="button"
+                        onClick={() => setResetChannel(channel)}
+                        aria-pressed={resetChannel === channel}
+                        style={{ background: resetChannel === channel ? 'var(--primary)' : 'var(--muted)', color: resetChannel === channel ? 'var(--primary-foreground)' : 'var(--foreground)', border: '1px solid var(--border)' }}
+                        className="py-2.5 rounded-lg text-sm font-semibold"
+                      >
+                        {channel === 'email' ? 'Email' : 'SMS'}
+                      </button>
+                    ))}
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--foreground)', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                      {resetChannel === 'email' ? 'Email yang terdaftar' : 'Nomor ponsel yang terdaftar'}
+                    </label>
+                    <input
+                      type={resetChannel === 'email' ? 'email' : 'tel'}
+                      autoComplete={resetChannel === 'email' ? 'email' : 'tel'}
+                      required
+                      value={resetContact}
+                      onChange={event => setResetContact(event.target.value)}
+                      placeholder={resetChannel === 'email' ? 'email@contoh.com' : '+62812...'}
+                      style={{ border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', width: '100%' }}
+                      className="px-4 py-3 rounded-xl text-sm outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <button type="submit" disabled={loading} style={{ background: 'var(--primary)', color: 'var(--primary-foreground)', width: '100%', borderRadius: '12px' }} className="py-3.5 font-semibold hover:opacity-90 disabled:opacity-60">
+                    {loading ? 'Mengirim kode...' : 'Kirim Kode Verifikasi'}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={event => void handleVerifyReset(event)} className="space-y-4">
+                  <p style={{ color: 'var(--muted-foreground)', fontSize: '13px' }}>
+                    Masukkan kode 6 digit yang dikirim ke {resetChannel === 'email' ? 'email' : 'nomor ponsel'} yang terdaftar.
+                  </p>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--foreground)', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Kode verifikasi</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      required
+                      value={resetCode}
+                      onChange={event => setResetCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="6 digit"
+                      style={{ border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', width: '100%' }}
+                      className="px-4 py-3 rounded-xl text-sm outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--foreground)', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Password baru</label>
+                    <input
+                      type="password" minLength={8} required
+                      value={form.password}
+                      onChange={event => setForm(previous => ({ ...previous, password: event.target.value }))}
+                      placeholder="Min. 8 karakter"
+                      style={{ border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', width: '100%' }}
+                      className="px-4 py-3 rounded-xl text-sm outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--foreground)', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Konfirmasi password baru</label>
+                    <input
+                      type="password" minLength={8} required
+                      value={form.confirmPassword}
+                      onChange={event => setForm(previous => ({ ...previous, confirmPassword: event.target.value }))}
+                      placeholder="Ulangi password baru"
+                      style={{ border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', width: '100%' }}
+                      className="px-4 py-3 rounded-xl text-sm outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <button type="submit" disabled={loading || resetCode.length !== 6} style={{ background: 'var(--primary)', color: 'var(--primary-foreground)', width: '100%', borderRadius: '12px' }} className="py-3.5 font-semibold hover:opacity-90 disabled:opacity-60">
+                    {loading ? 'Memverifikasi...' : 'Verifikasi dan Ubah Password'}
+                  </button>
+                  <div className="flex justify-between gap-3 text-sm">
+                    <button type="button" disabled={loading} onClick={() => { setResetStep('request'); setResetCode(''); setNotice(''); setError(''); }} style={{ color: 'var(--muted-foreground)' }}>Ganti metode</button>
+                    <button type="button" disabled={loading} onClick={() => void handleRequestReset()} style={{ color: 'var(--accent)', fontWeight: 600 }}>Kirim ulang kode</button>
+                  </div>
+                </form>
+              )}
+              <button type="button" onClick={() => { setRecovering(false); setResetStep('request'); setResetCode(''); setError(''); setNotice(''); }} style={{ color: 'var(--accent)', fontSize: '13px', fontWeight: 600 }}>
                 Kembali ke login
               </button>
-            </form>
+            </div>
           ) : tab === 'login' ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
@@ -261,7 +285,7 @@ export default function AuthPage() {
                 />
               </div>
               <div className="text-right">
-                <button type="button" onClick={() => { setRecovering(true); googleIntent.current = 'reset'; setError(''); }} style={{ color: 'var(--accent)', fontSize: '13px' }} className="hover:opacity-70">Lupa password?</button>
+                <button type="button" onClick={() => { setRecovering(true); setResetStep('request'); setResetChannel('email'); setResetContact(form.email); setResetCode(''); setError(''); setNotice(''); }} style={{ color: 'var(--accent)', fontSize: '13px' }} className="hover:opacity-70">Lupa password?</button>
               </div>
               <button type="submit" disabled={loading} style={{ background: 'var(--primary)', color: 'var(--primary-foreground)', width: '100%', borderRadius: '12px' }} className="py-3.5 font-semibold hover:opacity-90 disabled:opacity-60">
                 {loading ? 'Memproses...' : 'Masuk'}
@@ -294,23 +318,12 @@ export default function AuthPage() {
             </form>
           )}
 
-          {recovering && <div style={{ borderTop: '1px solid var(--border)', marginTop: '24px', paddingTop: '20px' }}>
-            <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', textAlign: 'center', marginBottom: '12px' }}>Verifikasi kepemilikan email melalui Google</p>
-            {googleClientId ? (
-              <div ref={googleButton} className="flex justify-center" />
-            ) : (
-              <button disabled style={{ width: '100%', border: '1px solid var(--border)', color: 'var(--muted-foreground)', borderRadius: '10px', cursor: 'not-allowed' }} className="py-2.5 text-sm font-medium">
-                Verifikasi Google belum dikonfigurasi
-              </button>
-            )}
-          </div>}
-
-          <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>
+          {!recovering && <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>
             {recovering ? '' : tab === 'login' ? 'Belum punya akun? ' : 'Sudah punya akun? '}
             <button onClick={() => setTab(tab === 'login' ? 'register' : 'login')} style={{ color: 'var(--accent)', fontWeight: 600 }} className="hover:opacity-70">
               {recovering ? '' : tab === 'login' ? 'Daftar gratis' : 'Masuk'}
             </button>
-          </p>
+          </p>}
         </div>
       </div>
     </div>

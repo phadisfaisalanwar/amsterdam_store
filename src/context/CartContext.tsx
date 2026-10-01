@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import type { Product } from '../data/products';
 import { getAvailableColors } from '../data/products';
+import { useAuth } from './AuthContext';
 
 export interface CartItem {
   product: Product;
@@ -26,11 +27,19 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState(0);
 
+  const requireLogin = () => {
+    if (user) return true;
+    window.dispatchEvent(new Event('amsterdam-auth-required'));
+    return false;
+  };
+
   const addToCart = (product: Product, qty = 1, color = getAvailableColors(product)[0]) => {
+    if (!requireLogin()) return;
     setItems(prev => {
       const existing = prev.find(i => i.product.id === product.id && i.color === color);
       if (existing) {
@@ -43,6 +52,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const buyNow = (product: Product, qty = 1, color = getAvailableColors(product)[0]) => {
+    if (!requireLogin()) return;
     setItems([{ product, quantity: qty, color }]);
   };
 

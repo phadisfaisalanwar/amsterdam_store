@@ -24,7 +24,13 @@ if ($method === 'GET') {
             $shipment['orderId'] = 'AMS-' . str_pad((string) $shipment['order_id'], 6, '0', STR_PAD_LEFT);
             $shipment['cost'] = (float) $shipment['shipping_cost'];
             $shipment['shippingMethod'] = $shipment['shipping_method'];
-            $shipment['status'] = $shipment['shipment_status'] ?? 'preparing';
+            $shipment['canReopen'] = $shipment['order_status'] === 'completed' && $shipment['shipment_status'] === null;
+            $shipment['status'] = $shipment['shipment_status'] ?? match ($shipment['order_status']) {
+                'processing' => 'preparing',
+                'shipped' => 'shipped',
+                'completed' => 'review',
+                default => 'review',
+            };
             $shipment['courier'] = $shipment['courier'] ?? '';
             $shipment['tracking'] = $shipment['tracking_number'] ?? '';
             $shipment['isCod'] = ($shipment['payment_method'] ?? '') === 'cod';
@@ -49,7 +55,7 @@ $orderId = filter_var($body['orderId'] ?? null, FILTER_VALIDATE_INT);
 $status = (string) ($body['status'] ?? '');
 $courier = trim((string) ($body['courier'] ?? ''));
 $tracking = trim((string) ($body['tracking'] ?? ''));
-if (!$orderId || !in_array($status, ['shipped', 'delivered'], true)) {
+if (!$orderId || !in_array($status, ['shipped', 'delivered', 'reopen'], true)) {
     jsonResponse(['error' => 'Data pengiriman tidak valid'], 422);
 }
 try {
@@ -77,13 +83,10 @@ try {
             $courier = 'Kurir toko (COD)';
             $tracking = 'AMS-COD-' . str_pad((string) $orderId, 6, '0', STR_PAD_LEFT);
         } else {
-            $courierByMethod = ['regular' => 'JNE', 'express' => 'J&T', 'sameday' => 'Grab'];
-            $trackingPrefix = ['regular' => 'JNE', 'express' => 'JNT', 'sameday' => 'GRAB'];
-            $shippingMethod = $order['shipping_method'] ?? 'regular';
-            $courier = $courierByMethod[$shippingMethod] ?? 'JNE';
-            $tracking = $trackingPrefix[$shippingMethod] . '-' . str_pad((string) $orderId, 8, '0', STR_PAD_LEFT);
+            if ($courier === '' || $tracking === '') {
+                throw new DomainException('Kurir dan nomor resi wajib diisi sebelum menandai pesanan dikirim');
+            }
         }
-
         $upsert = $database->prepare(
             "INSERT INTO shipments (order_id, courier, tracking_number, status, shipping_cost, shipped_at)
              VALUES (?, ?, ?, 'shipped', ?, CURRENT_TIMESTAMP)
@@ -93,6 +96,11 @@ try {
         $upsert->execute([$orderId, $courier, $tracking, $order['shipping_cost']]);
         $updateOrder = $database->prepare("UPDATE orders SET status = 'shipped', tracking_number = ? WHERE id = ?");
         $updateOrder->execute([$tracking, $orderId]);
+    } elseif ($status === 'reopen') {
+        if ($order['status'] !== 'completed' || $order['shipment_status'] !== null) {
+            throw new DomainException('Hanya pesanan selesai tanpa data pengiriman yang dapat dibuka kembali');
+        }
+        $database->prepare("UPDATE orders SET status = 'processing' WHERE id = ?")->execute([$orderId]);
     } else {
         if ($order['status'] !== 'shipped' || $order['shipment_status'] !== 'shipped') {
             throw new DomainException('Pesanan harus sudah dikirim untuk ditandai diterima');

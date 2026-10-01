@@ -9,7 +9,7 @@ interface Shipment {
   destination: string;
   courier: string;
   tracking: string;
-  status: 'preparing' | 'shipped' | 'delivered';
+  status: 'preparing' | 'shipped' | 'delivered' | 'review';
   order_status: string;
   shipped_date: string | null;
   cost: number;
@@ -17,19 +17,22 @@ interface Shipment {
   paymentStatus: string;
   customerConfirmedAt: string | null;
   shippingMethod: 'regular' | 'express' | 'sameday';
+  canReopen: boolean;
 }
 
 const statusStyle: Record<string, { bg: string; text: string }> = {
   preparing: { bg: '#dbeafe', text: '#1e40af' },
   shipped: { bg: '#e0f2fe', text: '#0369a1' },
   delivered: { bg: '#dcfce7', text: '#166534' },
+  review: { bg: '#fef3c7', text: '#92400e' },
 };
 
-const statusLabel = { preparing: 'Siap dikirim', shipped: 'Dikirim', delivered: 'Diterima' };
+const statusLabel = { preparing: 'Siap dikirim', shipped: 'Dikirim', delivered: 'Selesai', review: 'Perlu ditinjau' };
 
 export default function AdminShipping() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
-  const [drafts, setDrafts] = useState<Record<number, { courier: string; tracking: string }>>({});
+  const [courierDrafts, setCourierDrafts] = useState<Record<number, string>>({});
+  const [trackingDrafts, setTrackingDrafts] = useState<Record<number, string>>({});
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
 
@@ -37,7 +40,8 @@ export default function AdminShipping() {
     apiRequest<{ shipments: Shipment[] }>('admin-shipping.php')
       .then(payload => {
         setShipments(payload.shipments);
-        setDrafts(Object.fromEntries(payload.shipments.map(shipment => [shipment.order_id, { courier: shipment.courier, tracking: shipment.tracking }])));
+        setCourierDrafts(Object.fromEntries(payload.shipments.map(shipment => [shipment.order_id, shipment.courier ?? ''])));
+        setTrackingDrafts(Object.fromEntries(payload.shipments.map(shipment => [shipment.order_id, shipment.tracking ?? ''])));
       })
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Pengiriman tidak dapat dimuat'));
   }, []);
@@ -52,7 +56,16 @@ export default function AdminShipping() {
   }, []);
 
   const updateShipment = async (shipment: Shipment, status: 'shipped' | 'delivered') => {
-    const draft = drafts[shipment.order_id] ?? { courier: shipment.courier, tracking: shipment.tracking };
+    const courier = shipment.isCod
+      ? 'Kurir toko (COD)'
+      : courierDrafts[shipment.order_id]?.trim() ?? '';
+    const tracking = shipment.isCod
+      ? `AMS-COD-${String(shipment.order_id).padStart(6, '0')}`
+      : trackingDrafts[shipment.order_id]?.trim() ?? '';
+    if (status === 'shipped' && (!courier || !tracking)) {
+      setError('Isi nama kurir dan nomor resi terlebih dahulu sebelum menandai pesanan dikirim.');
+      return;
+    }
     const confirmation = shipment.isCod
       ? `Konfirmasi ${shipment.orderId} sudah diterima? Pembayaran COD akan otomatis dicatat lunas.`
       : `Tandai ${shipment.orderId} sudah diterima pelanggan?`;
@@ -62,7 +75,11 @@ export default function AdminShipping() {
     try {
       const result = await apiRequest<{ courier: string; tracking: string; paymentStatus: string }>('admin-shipping.php', {
         method: 'POST',
-        body: JSON.stringify({ orderId: shipment.order_id, status, ...(shipment.isCod ? {} : draft) }),
+        body: JSON.stringify({
+          orderId: shipment.order_id,
+          status,
+          ...(status === 'shipped' ? { courier, tracking } : {}),
+        }),
       });
       setShipments(previous => previous.map(item => item.order_id === shipment.order_id
         ? { ...item, courier: result.courier, tracking: result.tracking, paymentStatus: result.paymentStatus, status, order_status: status === 'delivered' ? 'completed' : 'shipped', shipped_date: item.shipped_date ?? new Date().toISOString().slice(0, 10) }
@@ -74,15 +91,37 @@ export default function AdminShipping() {
     }
   };
 
+  const reopenShipment = async (shipment: Shipment) => {
+    if (!window.confirm(`${shipment.orderId} berstatus selesai tetapi belum memiliki data pengiriman. Buka kembali ke status Diproses?`)) return;
+    setBusyId(shipment.order_id);
+    setError('');
+    try {
+      await apiRequest('admin-shipping.php', {
+        method: 'POST',
+        body: JSON.stringify({ orderId: shipment.order_id, status: 'reopen' }),
+      });
+      setShipments(previous => previous.map(item => item.order_id === shipment.order_id
+        ? { ...item, status: 'preparing', order_status: 'processing', canReopen: false, courier: '', tracking: '', shipped_date: null }
+        : item));
+      setCourierDrafts(previous => ({ ...previous, [shipment.order_id]: '' }));
+      setTrackingDrafts(previous => ({ ...previous, [shipment.order_id]: '' }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Pesanan tidak dapat dibuka kembali');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div>
       <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--primary)', fontWeight: 700, marginBottom: '20px' }} className="text-xl">Manajemen Pengiriman</h2>
+      <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '16px' }}>COD memakai kurir toko dan kode lacak otomatis. Untuk non-COD, masukkan kurir dan nomor resi dari jasa pengiriman; pembayaran harus sudah dikonfirmasi.</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-5 mb-6">
         {[
           { label: 'Sedang Dikirim', value: shipments.filter(s => s.status === 'shipped').length, color: '#0369a1', bg: '#e0f2fe' },
           { label: 'Pelanggan Lapor Diterima', value: shipments.filter(s => s.status === 'shipped' && s.customerConfirmedAt).length, color: '#92400e', bg: '#fef3c7' },
-          { label: 'Berhasil Diterima', value: shipments.filter(s => s.status === 'delivered').length, color: '#166534', bg: '#dcfce7' },
+          { label: 'Selesai', value: shipments.filter(s => s.status === 'delivered').length, color: '#166534', bg: '#dcfce7' },
           { label: 'Siap Dikirim', value: shipments.filter(s => s.status === 'preparing').length, color: '#1e40af', bg: '#dbeafe' },
         ].map(s => (
           <div key={s.label} style={{ background: s.bg, borderRadius: '16px', padding: '20px' }}>
@@ -111,10 +150,36 @@ export default function AdminShipping() {
                     <td style={{ padding: '12px 16px', color: 'var(--primary)', fontWeight: 700, fontSize: '13px' }}>{s.orderId}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--foreground)', fontSize: '13px' }}>{s.customer}</td>
                     <td style={{ padding: '12px 16px' }}>
-                      <span style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 700 }}>{s.courier || (s.isCod ? 'Kurir toko (COD)' : s.shippingMethod === 'express' ? 'J&T' : s.shippingMethod === 'sameday' ? 'Grab' : 'JNE')}</span>
+                      {s.status === 'preparing' && !s.isCod ? (
+                        <input
+                          aria-label={`Kurir untuk ${s.orderId}`}
+                          value={courierDrafts[s.order_id] ?? ''}
+                          onChange={event => setCourierDrafts(previous => ({ ...previous, [s.order_id]: event.target.value }))}
+                          placeholder="Nama kurir"
+                          style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', width: '140px' }}
+                          className="px-2 py-1.5 rounded-md text-xs"
+                        />
+                      ) : (
+                        <span style={{ color: 'var(--primary)', fontSize: '12px', fontWeight: 700 }}>{s.isCod ? 'Kurir toko (COD)' : s.courier || '—'}</span>
+                      )}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
-                      <span title={s.isCod ? 'Referensi internal COD' : 'Nomor resi dibuat otomatis berdasarkan metode pengiriman'} style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>{s.tracking || (s.isCod ? 'Dibuat otomatis saat dikirim' : 'Otomatis saat dikirim')}</span>
+                      {s.status === 'preparing' && !s.isCod ? (
+                        <input
+                          aria-label={`Nomor resi untuk ${s.orderId}`}
+                          value={trackingDrafts[s.order_id] ?? ''}
+                          onChange={event => setTrackingDrafts(previous => ({ ...previous, [s.order_id]: event.target.value }))}
+                          placeholder="Masukkan nomor resi"
+                          style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', width: '180px' }}
+                          className="px-2 py-1.5 rounded-md text-xs"
+                        />
+                      ) : s.status === 'preparing' && s.isCod ? (
+                        <span style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>
+                          AMS-COD-{String(s.order_id).padStart(6, '0')}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>{s.tracking || '—'}</span>
+                      )}
                     </td>
                     <td style={{ padding: '12px 16px', color: 'var(--foreground)', fontSize: '13px', whiteSpace: 'nowrap' }}>{s.destination}</td>
                     <td style={{ padding: '12px 16px' }}>
@@ -125,7 +190,8 @@ export default function AdminShipping() {
                     <td style={{ padding: '12px 16px', color: 'var(--muted-foreground)', fontSize: '13px', whiteSpace: 'nowrap' }}>{s.shipped_date ?? '—'}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--foreground)', fontWeight: 600, fontSize: '13px', whiteSpace: 'nowrap' }}>{formatPrice(s.cost)}</td>
                     <td style={{ padding: '12px 16px' }}>
-                      {s.status === 'preparing' && <button disabled={busyId === s.order_id} onClick={() => void updateShipment(s, 'shipped')} style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }} className="rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Simpan & Kirim</button>}
+                      {s.canReopen && <button disabled={busyId === s.order_id} onClick={() => void reopenShipment(s)} style={{ background: '#fef3c7', color: '#92400e' }} className="rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Buka ulang</button>}
+                      {s.status === 'preparing' && <button disabled={busyId === s.order_id || (!s.isCod && (!courierDrafts[s.order_id]?.trim() || !trackingDrafts[s.order_id]?.trim()))} onClick={() => void updateShipment(s, 'shipped')} style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }} className="rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Simpan & Kirim</button>}
                       {s.status === 'shipped' && <button disabled={busyId === s.order_id} onClick={() => void updateShipment(s, 'delivered')} style={{ background: '#dcfce7', color: '#166534' }} className="rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50">{s.customerConfirmedAt ? 'Verifikasi & Selesaikan' : s.isCod ? 'Terima & Konfirmasi COD' : 'Tandai Diterima'}</button>}
                       {s.status === 'delivered' && <span style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>Selesai</span>}
                     </td>

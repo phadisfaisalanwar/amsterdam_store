@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600;700&display=swap');
 @import 'tailwindcss';
+@import './animations.css';
+@import './rock-theme.css';
 
 @theme inline {
   --color-background: var(--background);
@@ -24,7 +26,7 @@
 }
 
 :root {
-  --background: #F5F0E8;
+  --background: #E9E5DD;
   --foreground: #1A1208;
   --card: #FFFFFF;
   --card-foreground: #1A1208;

@@ -1,4 +1,8 @@
-export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '');
+const configuredApiBase = import.meta.env.VITE_API_BASE_URL?.trim();
+const localApiBase = 'http://localhost/amsterdam/api';
+const sameOriginApiBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/api`;
+
+export const apiBaseUrl = (configuredApiBase || (import.meta.env.DEV ? localApiBase : sameOriginApiBase)).replace(/\/$/, '');
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${apiBaseUrl}/${path}`, {

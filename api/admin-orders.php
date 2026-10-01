@@ -117,7 +117,7 @@ try {
     $allowed = [
         'pending' => ['processing', 'cancelled'],
         'processing' => ['shipped', 'cancelled'],
-        'shipped' => ['completed'],
+        'shipped' => [],
         'completed' => [],
         'cancelled' => [],
     ];

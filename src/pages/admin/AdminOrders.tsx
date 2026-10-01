@@ -13,8 +13,8 @@ interface Order {
   status: 'pending' | 'processing' | 'shipped' | 'completed' | 'cancelled';
   paymentStatus: string;
   payment: string;
-  returnStatus: string;
-  returnType: string;
+  returnStatus?: string;
+  returnType?: string;
   courier: string;
   tracking: string;
   date: string;
@@ -79,7 +79,6 @@ export default function AdminOrders() {
       ];
     }
     if (order.status === 'processing') return ['shipped', ...(order.paymentStatus === 'success' ? [] : ['cancelled'])] as Order['status'][];
-    if (order.status === 'shipped') return ['completed'];
     return [];
   };
 
@@ -126,7 +125,7 @@ export default function AdminOrders() {
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', color: 'var(--foreground)', fontSize: '13px', whiteSpace: 'nowrap' }}>{order.payment}</td>
-                    <td style={{ padding: '12px 16px', color: order.returnStatus.includes('completed') ? '#166534' : '#92400e', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>{order.returnStatus ? `${order.returnType.includes('exchange') ? 'Penukaran' : 'Refund'} · ${order.returnStatus.split(',').join(' / ')}` : '—'}</td>
+                    <td style={{ padding: '12px 16px', color: order.returnStatus?.includes('completed') ? '#166534' : '#92400e', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>{order.returnStatus ? `${order.returnType?.includes('exchange') ? 'Penukaran' : 'Refund'} · ${order.returnStatus.split(',').join(' / ')}` : '—'}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--muted-foreground)', fontSize: '13px', whiteSpace: 'nowrap' }}>{order.date}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <button onClick={() => setDetail(order)} style={{ background: 'var(--muted)', color: 'var(--foreground)', padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 600 }} className="hover:opacity-80">Detail / Proses</button>
@@ -158,7 +157,7 @@ export default function AdminOrders() {
                 <div style={{ fontSize: '13px', color: 'var(--muted-foreground)' }}>{detail.email}</div>
                 <div style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginTop: '4px' }}>{detail.address}</div>
               </div>
-              {detail.returnStatus && <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '12px', padding: '16px' }}><div style={{ color: '#9a3412', fontWeight: 700, fontSize: '13px', marginBottom: '6px' }}>REFUND / PENGEMBALIAN</div><div style={{ color: '#9a3412', fontSize: '13px' }}>{detail.returnType.includes('exchange') ? 'Penukaran' : 'Refund'} · {detail.returnStatus.split(',').join(' / ')}</div></div>}
+              {detail.returnStatus && <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '12px', padding: '16px' }}><div style={{ color: '#9a3412', fontWeight: 700, fontSize: '13px', marginBottom: '6px' }}>REFUND / PENGEMBALIAN</div><div style={{ color: '#9a3412', fontSize: '13px' }}>{detail.returnType?.includes('exchange') ? 'Penukaran' : 'Refund'} · {detail.returnStatus.split(',').join(' / ')}</div></div>}
               <div style={{ background: 'var(--muted)', borderRadius: '12px', padding: '16px' }}>
                 <div style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '13px', marginBottom: '10px' }}>PRODUK</div>
                 {detail.items.map((item, i) => (
@@ -181,6 +180,7 @@ export default function AdminOrders() {
                   <span style={{ color: 'var(--muted-foreground)', fontSize: '13px' }}>Status pembayaran</span>
                   <strong style={{ color: detail.paymentStatus === 'success' ? '#166534' : '#92400e', fontSize: '13px' }}>{detail.paymentStatus === 'success' ? 'Dikonfirmasi' : detail.paymentStatus === 'failed' ? 'Ditolak' : 'Menunggu konfirmasi'}</strong>
                 </div>
+                {detail.status === 'shipped' && <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', marginTop: '8px' }}>Konfirmasi paket diterima dan penyelesaian pesanan dilakukan melalui panel Pengiriman.</p>}
                 {availableStatuses(detail).length > 0 && <div className="mt-4 flex flex-wrap gap-2">
                   {availableStatuses(detail).map(status => (
                     <button key={status} disabled={busyId === detail.id} onClick={() => void updateStatus(detail, status)} style={{ background: status === 'cancelled' ? '#fee2e2' : 'var(--primary)', color: status === 'cancelled' ? '#991b1b' : 'var(--primary-foreground)' }} className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50">

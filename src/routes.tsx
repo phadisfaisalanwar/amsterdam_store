@@ -1,6 +1,7 @@
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, Navigate } from 'react-router';
 import Layout from './layouts/Layout';
 import AdminLayout from './layouts/AdminLayout';
+import { useAuth } from './context/AuthContext';
 import Home from './pages/Home';
 import About from './pages/About';
 import AccountSettings from './pages/AccountSettings';
@@ -34,6 +35,12 @@ import AdminShipping from './pages/admin/AdminShipping';
 import AdminStock from './pages/admin/AdminStock';
 import AdminUsers from './pages/admin/AdminUsers';
 
+function CustomerAccess({ children }: { children: React.ReactNode }) {
+  const { user, authReady } = useAuth();
+  if (!authReady) return null;
+  return user ? children : <Navigate to="/auth" replace />;
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -44,9 +51,9 @@ export const router = createBrowserRouter([
       { path: 'account', element: <AccountSettings /> },
       { path: 'auth', element: <AuthPage /> },
       { path: 'blog', element: <Blog /> },
-      { path: 'cart', element: <Cart /> },
+      { path: 'cart', element: <CustomerAccess><Cart /></CustomerAccess> },
       { path: 'catalog', element: <Catalog /> },
-      { path: 'checkout', element: <Checkout /> },
+      { path: 'checkout', element: <CustomerAccess><Checkout /></CustomerAccess> },
       { path: 'contact', element: <Contact /> },
       { path: 'faq', element: <FAQ /> },
       { path: 'orders', element: <OrderHistory /> },

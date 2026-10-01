@@ -1,0 +1,171 @@
+/* Animasi hero Amsterdam. Impor di index.css: @import './animations.css'; */
+.ams-hero-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.ams-shade { position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 70% 40%, rgba(0,0,0,0) 0%, rgba(8,8,12,.55) 70%),
+              linear-gradient(180deg, rgba(8,8,12,.55), rgba(8,8,12,.75)); }
+
+.ams-smoke { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .5; will-change: transform; }
+.ams-smoke-a { width: 520px; height: 360px; left: -8%; bottom: -12%; background: rgba(255,255,255,.14); animation: ams-drift-a 22s ease-in-out infinite alternate; }
+.ams-smoke-b { width: 460px; height: 320px; right: -6%; top: -10%; background: var(--hero-accent); opacity: .28; animation: ams-drift-b 28s ease-in-out infinite alternate; }
+.ams-smoke-c { width: 380px; height: 280px; left: 38%; bottom: -18%; background: rgba(120,140,255,.18); animation: ams-drift-a 34s ease-in-out infinite alternate-reverse; }
+
+/* Cincin neon di belakang botol (kolom kanan hero) */
+.ams-glow { position: absolute; right: 12%; top: 50%; width: 340px; height: 340px; margin-top: -170px; border-radius: 50%;
+  border: 2px solid var(--hero-accent);
+  box-shadow: 0 0 40px var(--hero-accent), inset 0 0 40px var(--hero-accent);
+  animation: ams-pulse 4s ease-in-out infinite; }
+@media (max-width: 767px) { .ams-glow { right: 50%; margin-right: -170px; top: 72%; } }
+
+.ams-sticker { position: absolute; bottom: -60px; opacity: 0; border: 3px solid #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,.4); animation: ams-rise linear infinite; will-change: transform, opacity; }
+
+.hero-float { animation: ams-float 5s ease-in-out infinite; filter: drop-shadow(0 18px 28px rgba(0,0,0,.55)); }
+
+@keyframes ams-rise {
+  0%   { transform: translateY(0) rotate(-12deg); opacity: 0; }
+  10%  { opacity: .85; }
+  85%  { opacity: .85; }
+  100% { transform: translateY(-640px) rotate(24deg); opacity: 0; }
+}
+@keyframes ams-float { 0%,100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-14px) rotate(1.5deg); } }
+@keyframes ams-pulse { 0%,100% { opacity: .35; transform: scale(.97); } 50% { opacity: .8; transform: scale(1.03); } }
+@keyframes ams-drift-a { from { transform: translate(0,0) scale(1); } to { transform: translate(90px,-50px) scale(1.2); } }
+@keyframes ams-drift-b { from { transform: translate(0,0) scale(1); } to { transform: translate(-80px,60px) scale(1.15); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ams-smoke, .ams-glow, .ams-sticker, .hero-float { animation: none !important; }
+  .ams-sticker { opacity: .35; bottom: 20%; }
+}
+
+/* ========== SELURUH WEBSITE (tanpa mengubah komponen) ========== */
+@keyframes ams-page-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes ams-card-in { from { opacity: 0; transform: translateY(32px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes ams-pop { from { opacity: 0; transform: scale(.92) translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes ams-slide { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@keyframes ams-badge { 0% { transform: scale(0); } 70% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes ams-shake { 0%,100% { transform: none; } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+@keyframes ams-bg-pan { from { background-position: 0% 0%, 100% 100%; } to { background-position: 100% 60%, 0% 20%; } }
+
+/* Setiap halaman masuk dengan halus */
+main > * { animation: ams-page-in .6s ease backwards; }
+
+/* Kartu produk, blog, promo, kontak: muncul saat di-scroll + terangkat saat di-hover */
+@supports (animation-timeline: view()) {
+  main .grid > * { animation: ams-card-in linear both; animation-timeline: view(); animation-range: entry 0% entry 55%; }
+}
+main [class*="rounded-2xl"] { transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease; }
+main [class*="rounded-2xl"]:hover { transform: translateY(-6px); box-shadow: 0 18px 36px -12px rgba(26,43,74,.28), 0 0 0 1px var(--accent); }
+
+/* Tombol: terangkat saat hover, menekan saat diklik */
+main a[style*="background"], main button[style*="background"] { transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease; }
+main a[style*="background"]:hover, main button[style*="background"]:hover { transform: translateY(-2px); box-shadow: 0 8px 18px -6px rgba(0,0,0,.35); }
+main a[style*="background"]:active, main button[style*="background"]:active { transform: scale(.97); }
+
+/* Kolom isian: cincin emas saat fokus */
+.storefront input:focus, .storefront textarea:focus, .storefront select:focus { border-color: var(--accent) !important; box-shadow: 0 0 0 4px rgba(200,131,42,.22); outline: none; }
+
+/* Header halaman (About, Blog, Promo, Kontak, bagian biru/emas): cahaya bergerak */
+main section[style*="var(--primary)"] {
+  background-image: radial-gradient(circle at 20% 30%, rgba(200,131,42,.28), transparent 42%), radial-gradient(circle at 80% 70%, rgba(80,120,255,.22), transparent 45%) !important;
+  background-size: 170% 170% !important; animation: ams-bg-pan 18s ease-in-out infinite alternate; }
+main section[style*="background: var(--accent)"] {
+  background-image: radial-gradient(circle at 15% 25%, rgba(255,255,255,.28), transparent 40%), radial-gradient(circle at 85% 75%, rgba(120,40,0,.25), transparent 45%) !important;
+  background-size: 170% 170% !important; animation: ams-bg-pan 14s ease-in-out infinite alternate; }
+
+/* ========== NAVBAR ========== */
+.storefront header.sticky { backdrop-filter: blur(14px) saturate(1.4); background: color-mix(in srgb, var(--card) 82%, transparent) !important; }
+.storefront header nav a { position: relative; }
+.storefront header nav a::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 2px; height: 2px; border-radius: 2px;
+  background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .3s ease; }
+.storefront header nav a:hover::after, .storefront header nav a[style*="font-weight: 600"]::after { transform: scaleX(1); }
+.storefront header a.group > div:first-child { transition: transform .35s cubic-bezier(.3,1.6,.5,1); }
+.storefront header a.group:hover > div:first-child { transform: rotate(-10deg) scale(1.12); }
+.storefront header a span.absolute { animation: ams-badge .4s ease; }
+.storefront header > div:nth-child(2) { animation: ams-slide .25s ease; }
+.storefront header .mt-2.w-48 { animation: ams-pop .18s ease; transform-origin: top right; }
+.storefront footer a.block { transition: transform .2s ease, color .2s ease; }
+.storefront footer a.block:hover { transform: translateX(5px); color: var(--accent) !important; }
+.storefront footer a.w-9:hover { transform: translateY(-4px) rotate(-6deg); }
+
+/* ========== LOGIN / DAFTAR ========== */
+.storefront [style*="flex: 0 0 45%"] {
+  background-image: radial-gradient(circle at 20% 20%, rgba(200,131,42,.4), transparent 45%), radial-gradient(circle at 80% 75%, rgba(47,91,234,.35), transparent 50%) !important;
+  background-size: 170% 170% !important; animation: ams-bg-pan 16s ease-in-out infinite alternate; }
+.storefront [style*="flex: 0 0 45%"] img { animation: ams-float 5s ease-in-out infinite; box-shadow: 0 0 40px rgba(200,131,42,.55); }
+.storefront [style*="flex: 0 0 45%"] h2 { animation: ams-page-in .8s .1s ease backwards; }
+.storefront [style*="max-width: 440px"] { animation: ams-pop .6s ease backwards; }
+.storefront [style*="254, 242, 242"] { animation: ams-shake .4s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  main > *, main .grid > *, .storefront header *, .storefront [style*="flex: 0 0 45%"], .storefront [style*="flex: 0 0 45%"] *, .storefront [style*="max-width: 440px"],
+  main section[style*="var(--primary)"], main section[style*="background: var(--accent)"] { animation: none !important; }
+  main [class*="rounded-2xl"]:hover, main a[style*="background"]:hover { transform: none; }
+}
+
+/* ========== LATAR GAMBAR BERGERAK: SELURUH HALAMAN + FOOTER ========== */
+/* Gambar tumbler berupa SVG di dalam CSS. Mau pakai fotomu sendiri? Ganti nilai --ams-bottle-amber
+   / --ams-bottle-white dengan url('/nama-gambar.png') setelah gambarnya ditaruh di folder public/. */
+:root {
+  --ams-bottle-amber: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360' viewBox='0 0 360 360' fill='none' stroke='%23C8832A' stroke-width='3' stroke-linecap='round' opacity='.38'%3E%3Cg transform='translate(70 90) rotate(-14)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3Cg transform='translate(250 150) rotate(10) scale(.8)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3Cg transform='translate(150 275) rotate(-6) scale(.9)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3C/svg%3E");
+  --ams-bottle-white: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='100' viewBox='0 0 240 100' fill='none' stroke='%23F5F0E8' stroke-width='3' stroke-linecap='round'%3E%3Cg transform='translate(40 52) scale(.6) rotate(-8)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3Cg transform='translate(120 50) scale(.5) rotate(6)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3Cg transform='translate(200 54) scale(.65) rotate(-4)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3C/svg%3E");
+  --ams-bubbles: radial-gradient(circle at 20% 80%, rgba(255,255,255,.4) 0 6px, transparent 7px), radial-gradient(circle at 62% 45%, rgba(255,255,255,.28) 0 4px, transparent 5px), radial-gradient(circle at 86% 18%, rgba(255,255,255,.34) 0 9px, transparent 10px), radial-gradient(circle at 40% 15%, rgba(255,255,255,.22) 0 3px, transparent 4px);
+}
+
+@keyframes ams-tile-diag { to { transform: translate3d(360px, 360px, 0); } }
+@keyframes ams-tile-up { to { transform: translate3d(0, -300px, 0); } }
+@keyframes ams-tile-left { to { transform: translate3d(-240px, 0, 0); } }
+
+/* Latar seluruh halaman: dua lapis tumbler melayang dengan kecepatan berbeda */
+.storefront.min-h-screen.flex-col { background: var(--background) !important; }
+main section[style*="background: var(--muted)"] { background: color-mix(in srgb, var(--muted) 72%, transparent) !important; }
+body::before, body::after { content: ''; position: fixed; z-index: -1; pointer-events: none; }
+body::before { inset: -360px 0 0 -360px; background-image: var(--ams-bottle-amber); background-size: 360px 360px; }
+body::after  { inset: -220px -220px 0 0; background-image: var(--ams-bottle-amber); background-size: 220px 220px; opacity: .6; }
+
+/* Header halaman (About, Blog, Promo, Kontak, dll): gelembung naik + tumbler melayang, seperti beranda */
+main section[style*="var(--primary)"], main section[style*="background: var(--accent)"] { position: relative; overflow: hidden; }
+main section[style*="var(--primary)"]::before, main section[style*="background: var(--accent)"]::before,
+main section[style*="var(--primary)"]::after,  main section[style*="background: var(--accent)"]::after {
+  content: ''; position: absolute; pointer-events: none; z-index: 0; will-change: transform; }
+main section[style*="var(--primary)"]::before, main section[style*="background: var(--accent)"]::before {
+  inset: 0 0 -300px 0; background-image: var(--ams-bubbles); background-size: 300px 300px; animation: ams-tile-up 16s linear infinite; }
+main section[style*="var(--primary)"]::after, main section[style*="background: var(--accent)"]::after {
+  inset: -360px 0 0 -360px; background-image: var(--ams-bottle-amber); background-size: 360px 360px; opacity: .6; animation: ams-tile-diag 90s linear infinite; }
+main section[style*="var(--primary)"] > *:not(.absolute):not(.ams-hero-bg),
+main section[style*="background: var(--accent)"] > *:not(.absolute):not(.ams-hero-bg) { position: relative; z-index: 1; }
+
+/* Footer: barisan tumbler berjalan di dasar + gelembung naik + cahaya bergeser */
+.storefront footer { position: relative; overflow: hidden;
+  background-image: radial-gradient(circle at 15% 20%, rgba(200,131,42,.25), transparent 40%), radial-gradient(circle at 85% 80%, rgba(80,120,255,.2), transparent 45%) !important;
+  background-size: 170% 170% !important; animation: ams-bg-pan 20s ease-in-out infinite alternate; }
+.storefront footer::before, .storefront footer::after { content: ''; position: absolute; pointer-events: none; z-index: 0; will-change: transform; }
+.storefront footer::before { left: 0; right: -240px; bottom: 0; height: 100px; background-image: var(--ams-bottle-white); background-size: 240px 100px; background-repeat: repeat-x; opacity: .2; animation: ams-tile-left 28s linear infinite; }
+.storefront footer::after  { inset: 0 0 -300px 0; background-image: var(--ams-bubbles); background-size: 300px 300px; animation: ams-tile-up 22s linear infinite; }
+.storefront footer > div { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after, footer, footer::before, footer::after,
+  main section[style*="var(--primary)"]::before, main section[style*="var(--primary)"]::after,
+  main section[style*="background: var(--accent)"]::before, main section[style*="background: var(--accent)"]::after { animation: none !important; }
+}
+
+/* ========== HEADER ATAS: PROMO, BLOG, TENTANG KAMI, KONTAK ========== */
+:root {
+  --ams-hero-amber: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360' viewBox='0 0 360 360' fill='none' stroke='%23C8832A' stroke-width='3' stroke-linecap='round' opacity='.75'%3E%3Cg transform='translate(70 90) rotate(-14)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3Cg transform='translate(250 150) rotate(10) scale(.8)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3Cg transform='translate(150 275) rotate(-6) scale(.9)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3C/svg%3E");
+  --ams-hero-white: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360' viewBox='0 0 360 360' fill='none' stroke='%23FFFFFF' stroke-width='3' stroke-linecap='round' opacity='.6'%3E%3Cg transform='translate(70 90) rotate(-14)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3Cg transform='translate(250 150) rotate(10) scale(.8)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3Cg transform='translate(150 275) rotate(-6) scale(.9)'%3E%3Crect x='-10' y='-70' width='20' height='14' rx='3'/%3E%3Crect x='-22' y='-56' width='44' height='116' rx='12'/%3E%3Cpath d='M-12 -40v70'/%3E%3C/g%3E%3C/svg%3E");
+}
+main > div > div:first-child[style*="background: var(--primary)"], main > div > div:first-child[style*="background: var(--accent)"] { position: relative; overflow: hidden;
+  background-size: 170% 170% !important; animation: ams-bg-pan 14s ease-in-out infinite alternate; }
+main > div > div:first-child[style*="background: var(--primary)"] { background-image: radial-gradient(circle at 18% 30%, rgba(200,131,42,.45), transparent 42%), radial-gradient(circle at 82% 70%, rgba(80,120,255,.38), transparent 46%) !important; }
+main > div > div:first-child[style*="background: var(--accent)"] { background-image: radial-gradient(circle at 15% 25%, rgba(255,255,255,.38), transparent 40%), radial-gradient(circle at 85% 75%, rgba(120,40,0,.32), transparent 45%) !important; }
+main > div > div:first-child[style*="background: var(--primary)"]::before, main > div > div:first-child[style*="background: var(--accent)"]::before, main > div > div:first-child[style*="background: var(--primary)"]::after, main > div > div:first-child[style*="background: var(--accent)"]::after { content: ''; position: absolute; pointer-events: none; z-index: 0; will-change: transform; }
+/* gelembung naik */
+main > div > div:first-child[style*="background: var(--primary)"]::before, main > div > div:first-child[style*="background: var(--accent)"]::before { inset: 0 0 -300px 0; background-image: var(--ams-bubbles); background-size: 300px 300px; animation: ams-tile-up 12s linear infinite; }
+/* tumbler melayang diagonal */
+main > div > div:first-child[style*="background: var(--primary)"]::after { inset: -360px 0 0 -360px; background-image: var(--ams-hero-amber); background-size: 360px 360px; animation: ams-tile-diag 45s linear infinite; }
+main > div > div:first-child[style*="background: var(--accent)"]::after { inset: -360px 0 0 -360px; background-image: var(--ams-hero-white); background-size: 360px 360px; animation: ams-tile-diag 45s linear infinite; }
+main > div > div:first-child[style*="background: var(--primary)"] > *, main > div > div:first-child[style*="background: var(--accent)"] > * { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  main > div > div:first-child[style*="background: var(--primary)"], main > div > div:first-child[style*="background: var(--accent)"], main > div > div:first-child[style*="background: var(--primary)"]::before, main > div > div:first-child[style*="background: var(--accent)"]::before, main > div > div:first-child[style*="background: var(--primary)"]::after, main > div > div:first-child[style*="background: var(--accent)"]::after { animation: none !important; }
+}

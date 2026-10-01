@@ -2,6 +2,27 @@
 
 declare(strict_types=1);
 
+$localConfig = [];
+$localConfigFile = __DIR__ . '/config.local.php';
+if (is_file($localConfigFile)) {
+    $loadedConfig = require $localConfigFile;
+    if (is_array($loadedConfig)) {
+        $localConfig = $loadedConfig;
+    }
+}
+
+foreach ([
+    'RESEND_API_KEY' => 'resend_api_key',
+    'PASSWORD_RESET_FROM_EMAIL' => 'password_reset_from_email',
+    'TWILIO_ACCOUNT_SID' => 'twilio_account_sid',
+    'TWILIO_AUTH_TOKEN' => 'twilio_auth_token',
+    'TWILIO_FROM_NUMBER' => 'twilio_from_number',
+] as $environmentName => $configKey) {
+    if (getenv($environmentName) === false && !empty($localConfig[$configKey])) {
+        putenv($environmentName . '=' . $localConfig[$configKey]);
+    }
+}
+
 function database(): PDO
 {
     static $connection;
@@ -10,10 +31,11 @@ function database(): PDO
         return $connection;
     }
 
-    $host = getenv('AMSTERDAM_DB_HOST') ?: '127.0.0.1';
-    $database = getenv('AMSTERDAM_DB_NAME') ?: 'amsterdam';
-    $username = getenv('AMSTERDAM_DB_USER') ?: 'root';
-    $password = getenv('AMSTERDAM_DB_PASSWORD') ?: '';
+    global $localConfig;
+    $host = (string) ($localConfig['db_host'] ?? (getenv('AMSTERDAM_DB_HOST') ?: '127.0.0.1'));
+    $database = (string) ($localConfig['db_name'] ?? (getenv('AMSTERDAM_DB_NAME') ?: 'amsterdam'));
+    $username = (string) ($localConfig['db_user'] ?? (getenv('AMSTERDAM_DB_USER') ?: 'root'));
+    $password = (string) ($localConfig['db_password'] ?? (getenv('AMSTERDAM_DB_PASSWORD') ?: ''));
     $dsn = "mysql:host={$host};dbname={$database};charset=utf8mb4";
 
     $connection = new PDO($dsn, $username, $password, [

@@ -8,6 +8,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     jsonResponse(['error' => 'Method tidak diizinkan'], 405);
 }
 
+$authenticatedUser = requireApiUser();
+$database = database();
+$maintenanceStatement = $database->prepare('SELECT setting_value FROM store_settings WHERE setting_key = ?');
+$maintenanceStatement->execute(['maintenanceMode']);
+$maintenanceMode = json_decode((string) ($maintenanceStatement->fetchColumn() ?: 'false'), true) === true;
+if ($maintenanceMode && !in_array($authenticatedUser['role'], ['super_admin', 'staff_gudang'], true)) {
+    jsonResponse(['error' => 'Toko sedang dalam perbaikan dan belum dapat menerima pesanan'], 503);
+}
+
 $body = jsonBody();
 $customer = $body['customer'] ?? [];
 $items = $body['items'] ?? [];
@@ -66,7 +75,6 @@ foreach ($items as $item) {
     $orderLines[] = ['productId' => $productId, 'quantity' => $quantity, 'color' => $color];
 }
 
-$database = database();
 try {
     $database->beginTransaction();
     $placeholders = implode(',', array_fill(0, count($quantities), '?'));
@@ -120,12 +128,9 @@ try {
     $total = $subtotal + $shippingCost;
     $shippingAddress = implode(', ', array_filter([$address, $city, $province, $postalCode]));
 
-    startApiSession();
-    $userId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
-    if ($userId !== null) {
-        $profile = $database->prepare('UPDATE users SET phone = ?, address = ? WHERE id = ?');
-        $profile->execute([$phone, $shippingAddress, $userId]);
-    }
+    $userId = (int) $authenticatedUser['id'];
+    $profile = $database->prepare('UPDATE users SET phone = ?, address = ? WHERE id = ?');
+    $profile->execute([$phone, $shippingAddress, $userId]);
     $order = $database->prepare(
         'INSERT INTO orders (user_id, customer_name, customer_email, customer_phone, shipping_address, shipping_method, shipping_cost, total_amount, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'pending\')'
